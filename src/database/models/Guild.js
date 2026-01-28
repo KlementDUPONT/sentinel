@@ -2,170 +2,215 @@ import dbConnection from '../connection.js';
 import logger from '../../utils/logger.js';
 
 /**
- * Modèle pour la gestion des guildes/serveurs
+ * Modèle pour gérer les serveurs Discord (guilds)
  */
 class GuildModel {
   constructor() {
-    this.db = dbConnection.getDatabase();
+    // Lazy loading de la DB
+    this.db = null;
   }
 
   /**
-   * Récupère ou crée la configuration d'une guilde
+   * S'assure que la DB est connectée (lazy loading)
    */
-  async getOrCreate(guildId) {
+  _getDb() {
+    if (!this.db) {
+      this.db = dbConnection.getDatabase();
+    }
+    return this.db;
+  }
+
+  /**
+   * Crée un nouveau serveur dans la base de données
+   */
+  create(guildData) {
+    const db = this._getDb();
+
+    const stmt = db.prepare(`
+      INSERT INTO guilds (guild_id, name, prefix, language, timezone, joined_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
     try {
-      let guild = this.get(guildId);
-      
-      if (!guild) {
-        this.create(guildId);
-        guild = this.get(guildId);
-        logger.database('create', `New guild: ${guildId}`);
-      }
-      
-      return guild;
+      const result = stmt.run(
+        guildData.guild_id,
+        guildData.name,
+        guildData.prefix || '+',
+        guildData.language || 'fr',
+        guildData.timezone || 'Europe/Paris',
+        guildData.joined_at || Math.floor(Date.now() / 1000)
+      );
+
+      logger.info(`✅ Guild created: ${guildData.guild_id} (${guildData.name})`);
+      return this.findById(guildData.guild_id);
     } catch (error) {
-      logger.error(`Error in getOrCreate guild: ${error.message}`);
+      logger.error(`❌ Failed to create guild ${guildData.guild_id}:`, error);
       throw error;
     }
   }
 
   /**
-   * Récupère une guilde
+   * Trouve un serveur par son ID
    */
-  get(guildId) {
-    const stmt = this.db.prepare('SELECT * FROM guilds WHERE guild_id = ?');
+  findById(guildId) {
+    const db = this._getDb();
+
+    const stmt = db.prepare('SELECT * FROM guilds WHERE guild_id = ? AND left_at IS NULL');
     return stmt.get(guildId);
   }
 
   /**
-   * Crée une nouvelle guilde
+   * Trouve ou crée un serveur
    */
-  create(guildId, data = {}) {
-    const stmt = this.db.prepare(`
-      INSERT INTO guilds (guild_id, prefix, language)
-      VALUES (?, ?, ?)
-    `);
-    
-    return stmt.run(
-      guildId,
-      data.prefix || '+',
-      data.language || 'fr'
-    );
+  findOrCreate(guildData) {
+    let guild = this.findById(guildData.guild_id);
+
+    if (!guild) {
+      guild = this.create(guildData);
+    }
+
+    return guild;
   }
 
   /**
-   * Met à jour une guilde
+   * Met à jour un serveur
    */
-  update(guildId, data) {
-    const fields = Object.keys(data);
-    const values = Object.values(data);
-    
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
-    const stmt = this.db.prepare(`
+  update(guildId, updates) {
+    const db = this._getDb();
+
+    const fields = [];
+    const values = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+
+    fields.push('updated_at = ?');
+    values.push(Math.floor(Date.now() / 1000));
+    values.push(guildId);
+
+    const stmt = db.prepare(`
       UPDATE guilds 
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
+      SET ${fields.join(', ')}
       WHERE guild_id = ?
     `);
-    
-    return stmt.run([...values, guildId]);
+
+    try {
+      stmt.run(...values);
+      logger.info(`✅ Guild updated: ${guildId}`);
+      return this.findById(guildId);
+    } catch (error) {
+      logger.error(`❌ Failed to update guild ${guildId}:`, error);
+      throw error;
+    }
   }
 
   /**
-   * Supprime une guilde
+   * Marque un serveur comme quitté
    */
-  delete(guildId) {
-    const stmt = this.db.prepare('DELETE FROM guilds WHERE guild_id = ?');
-    return stmt.run(guildId);
+  markAsLeft(guildId) {
+    const db = this._getDb();
+
+    const stmt = db.prepare(`
+      UPDATE guilds 
+      SET left_at = ?, updated_at = ?
+      WHERE guild_id = ?
+    `);
+
+    const now = Math.floor(Date.now() / 1000);
+
+    try {
+      stmt.run(now, now, guildId);
+      logger.info(`👋 Guild marked as left: ${guildId}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to mark guild as left ${guildId}:`, error);
+      throw error;
+    }
   }
 
   /**
-   * Récupère le préfixe d'une guilde
+   * Récupère tous les serveurs actifs
    */
-  getPrefix(guildId) {
-    const guild = this.get(guildId);
-    return guild?.prefix || '+';
-  }
+  findAll() {
+    const db = this._getDb();
 
-  /**
-   * Définit le préfixe d'une guilde
-   */
-  setPrefix(guildId, prefix) {
-    return this.update(guildId, { prefix });
-  }
-
-  /**
-   * Active/désactive un module
-   */
-  setModule(guildId, module, enabled) {
-    const field = `${module}_enabled`;
-    return this.update(guildId, { [field]: enabled ? 1 : 0 });
-  }
-
-  /**
-   * Définit un canal de logs
-   */
-  setLogChannel(guildId, channelId) {
-    return this.update(guildId, { log_channel: channelId });
-  }
-
-  /**
-   * Définit un canal de logs de modération
-   */
-  setModLogChannel(guildId, channelId) {
-    return this.update(guildId, { mod_log_channel: channelId });
-  }
-
-  /**
-   * Configuration des messages de bienvenue
-   */
-  setWelcome(guildId, enabled, channelId, message) {
-    return this.update(guildId, {
-      welcome_enabled: enabled ? 1 : 0,
-      welcome_channel: channelId,
-      welcome_message: message
-    });
-  }
-
-  /**
-   * Configuration des messages d'au revoir
-   */
-  setGoodbye(guildId, enabled, channelId, message) {
-    return this.update(guildId, {
-      goodbye_enabled: enabled ? 1 : 0,
-      goodbye_channel: channelId,
-      goodbye_message: message
-    });
-  }
-
-  /**
-   * Configuration de l'économie
-   */
-  setEconomy(guildId, config) {
-    return this.update(guildId, {
-      economy_enabled: config.enabled ? 1 : 0,
-      currency_name: config.currencyName,
-      currency_symbol: config.currencySymbol,
-      daily_amount: config.dailyAmount,
-      work_min: config.workMin,
-      work_max: config.workMax
-    });
-  }
-
-  /**
-   * Récupère toutes les guildes
-   */
-  getAll() {
-    const stmt = this.db.prepare('SELECT * FROM guilds');
+    const stmt = db.prepare('SELECT * FROM guilds WHERE left_at IS NULL ORDER BY joined_at DESC');
     return stmt.all();
   }
 
   /**
-   * Compte le nombre de guildes
+   * Compte le nombre de serveurs actifs
    */
   count() {
-    const stmt = this.db.prepare('SELECT COUNT(*) as count FROM guilds');
-    return stmt.get().count;
+    const db = this._getDb();
+
+    const stmt = db.prepare('SELECT COUNT(*) as count FROM guilds WHERE left_at IS NULL');
+    const result = stmt.get();
+    return result.count;
+  }
+
+  /**
+   * Récupère le préfixe d'un serveur
+   */
+  getPrefix(guildId) {
+    const guild = this.findById(guildId);
+    return guild ? guild.prefix : '+';
+  }
+
+  /**
+   * Change le préfixe d'un serveur
+   */
+  setPrefix(guildId, newPrefix) {
+    return this.update(guildId, { prefix: newPrefix });
+  }
+
+  /**
+   * Récupère les paramètres d'un serveur
+   */
+  getSettings(guildId) {
+    const guild = this.findById(guildId);
+    
+    if (!guild) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(guild.settings || '{}');
+    } catch (error) {
+      logger.error(`Failed to parse settings for guild ${guildId}:`, error);
+      return {};
+    }
+  }
+
+  /**
+   * Met à jour les paramètres d'un serveur
+   */
+  setSettings(guildId, settings) {
+    return this.update(guildId, { 
+      settings: JSON.stringify(settings) 
+    });
+  }
+
+  /**
+   * Supprime définitivement un serveur
+   */
+  delete(guildId) {
+    const db = this._getDb();
+
+    const stmt = db.prepare('DELETE FROM guilds WHERE guild_id = ?');
+
+    try {
+      stmt.run(guildId);
+      logger.info(`🗑️ Guild deleted: ${guildId}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to delete guild ${guildId}:`, error);
+      throw error;
+    }
   }
 }
 
+// Export d'une instance unique (singleton)
 export default new GuildModel();

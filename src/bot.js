@@ -8,7 +8,7 @@ import CommandHandler from './handlers/CommandHandler.js';
 import EventHandler from './handlers/EventHandler.js';
 
 /**
- * Point d'entrée principal du bot Sentinel
+ * Point d'entrée principal du bot Sentinel Alpha
  */
 
 // Créer le client Discord
@@ -65,7 +65,7 @@ async function initialize() {
     logger.info(`🔧 Prefix: ${config.bot.defaultPrefix}`);
     logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    // 1. Initialiser la base de données
+    // 1. Initialiser la base de données AVANT tout le reste
     logger.info('📦 Step 1/4: Database initialization');
     await databaseHandler.initialize();
 
@@ -120,6 +120,18 @@ async function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
+// Gestion des erreurs non capturées
+process.on('unhandledRejection', (error) => {
+  logger.error('❌ Unhandled promise rejection:');
+  logger.error(error);
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('❌ Uncaught exception:');
+  logger.error(error);
+  process.exit(1);
+});
+
 // Nettoyage périodique de la base de données (toutes les 24h)
 setInterval(() => {
   logger.info('🧹 Running scheduled database cleanup...');
@@ -132,6 +144,9 @@ setInterval(() => {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Middleware pour parser le JSON
+app.use(express.json());
+
 // Health check endpoint
 app.get('/', (req, res) => {
   res.status(200).json({
@@ -141,13 +156,17 @@ app.get('/', (req, res) => {
     guilds: client.guilds?.cache.size || 0,
     users: client.users?.cache.size || 0,
     version: config.bot.version,
+    ready: client.isReady(),
   });
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy',
-    timestamp: new Date().toISOString()
+  const isHealthy = client.isReady();
+  
+  res.status(isHealthy ? 200 : 503).json({ 
+    status: isHealthy ? 'healthy' : 'unhealthy',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
   });
 });
 
@@ -156,15 +175,18 @@ app.get('/stats', (req, res) => {
     bot: client.user?.tag || 'Starting...',
     guilds: client.guilds?.cache.size || 0,
     users: client.users?.cache.size || 0,
+    channels: client.channels?.cache.size || 0,
     commands: client.commands?.size || 0,
     uptime: Math.floor(process.uptime()),
     memory: process.memoryUsage(),
+    ready: client.isReady(),
+    version: config.bot.version,
   };
   res.status(200).json(stats);
 });
 
 // Démarrer le serveur HTTP
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🌐 Health check server running on port ${PORT}`);
 });
 
