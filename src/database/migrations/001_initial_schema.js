@@ -58,8 +58,8 @@ export const up = (db) => {
       log_channels INTEGER DEFAULT 0,
       log_server INTEGER DEFAULT 0,
       
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
 
@@ -73,8 +73,8 @@ export const up = (db) => {
       -- Economy
       balance INTEGER DEFAULT 0,
       bank INTEGER DEFAULT 0,
-      last_daily DATETIME,
-      last_work DATETIME,
+      last_daily INTEGER,
+      last_work INTEGER,
       total_earned INTEGER DEFAULT 0,
       total_spent INTEGER DEFAULT 0,
       
@@ -82,14 +82,14 @@ export const up = (db) => {
       xp INTEGER DEFAULT 0,
       level INTEGER DEFAULT 0,
       messages_count INTEGER DEFAULT 0,
-      last_xp_gain DATETIME,
+      last_xp_gain INTEGER,
       
       -- Stats
       commands_used INTEGER DEFAULT 0,
       voice_time INTEGER DEFAULT 0,
       
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       UNIQUE(user_id, guild_id),
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
@@ -106,7 +106,7 @@ export const up = (db) => {
       moderator_id TEXT NOT NULL,
       reason TEXT,
       active INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
     )
@@ -125,8 +125,8 @@ export const up = (db) => {
       moderator_tag TEXT,
       reason TEXT,
       duration INTEGER,
-      expires_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
       UNIQUE(guild_id, case_id)
@@ -147,8 +147,8 @@ export const up = (db) => {
       claimed_by TEXT,
       closed_by TEXT,
       closed_reason TEXT,
-      closed_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      closed_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
     )
@@ -162,7 +162,7 @@ export const up = (db) => {
       message_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       content TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
     )
@@ -180,10 +180,10 @@ export const up = (db) => {
       description TEXT,
       winners_count INTEGER DEFAULT 1,
       required_role TEXT,
-      ends_at DATETIME NOT NULL,
+      ends_at INTEGER NOT NULL,
       ended INTEGER DEFAULT 0,
       winners TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
     )
@@ -201,7 +201,7 @@ export const up = (db) => {
       role_id TEXT,
       stock INTEGER DEFAULT -1,
       buyable INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
     )
@@ -215,7 +215,7 @@ export const up = (db) => {
       guild_id TEXT NOT NULL,
       item_id TEXT NOT NULL,
       quantity INTEGER DEFAULT 1,
-      acquired_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      acquired_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
       FOREIGN KEY (item_id) REFERENCES shop_items(item_id) ON DELETE CASCADE,
@@ -230,7 +230,7 @@ export const up = (db) => {
       guild_id TEXT NOT NULL,
       level INTEGER NOT NULL,
       role_id TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
       UNIQUE(guild_id, level)
@@ -244,7 +244,7 @@ export const up = (db) => {
       user_id TEXT NOT NULL,
       guild_id TEXT NOT NULL,
       reason TEXT,
-      set_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      set_at INTEGER DEFAULT (strftime('%s', 'now')),
       
       FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
       UNIQUE(user_id, guild_id)
@@ -267,7 +267,6 @@ export const up = (db) => {
 };
 
 export const down = (db) => {
-  // Suppression des tables (rollback)
   const tables = [
     'afk_users',
     'level_roles',

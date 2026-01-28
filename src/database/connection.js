@@ -42,14 +42,14 @@ class DatabaseConnection {
       });
 
       // Configuration de la base de données
-      this.db.pragma('journal_mode = WAL'); // Write-Ahead Logging pour de meilleures performances
+      this.db.pragma('journal_mode = WAL'); // Write-Ahead Logging
       this.db.pragma('foreign_keys = ON'); // Activer les clés étrangères
 
       this.isConnected = true;
       logger.info(`✅ Database connected: ${dbPath}`);
 
-      // Initialiser les tables
-      this.initializeTables();
+      // NE PLUS APPELER initializeTables() ici
+      // Les tables seront créées par les migrations
 
       return this.db;
     } catch (error) {
@@ -62,7 +62,6 @@ class DatabaseConnection {
    * Récupère l'instance de la base de données (avec auto-connect)
    */
   getDatabase() {
-    // Auto-connect si pas encore connecté
     if (!this.db || !this.isConnected) {
       logger.warn('⚠️ Database not connected. Auto-connecting...');
       this.connect();
@@ -73,93 +72,6 @@ class DatabaseConnection {
     }
 
     return this.db;
-  }
-
-  /**
-   * Initialise les tables de la base de données
-   */
-  initializeTables() {
-    if (!this.db) {
-      throw new Error('Database not connected');
-    }
-
-    logger.info('📋 Initializing database tables...');
-
-    // Table des serveurs (guilds)
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS guilds (
-        guild_id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        prefix TEXT DEFAULT '+',
-        language TEXT DEFAULT 'fr',
-        timezone TEXT DEFAULT 'Europe/Paris',
-        premium BOOLEAN DEFAULT 0,
-        joined_at INTEGER NOT NULL,
-        left_at INTEGER,
-        settings TEXT DEFAULT '{}',
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-      )
-    `);
-
-    // Table des utilisateurs
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        user_id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        discriminator TEXT,
-        avatar TEXT,
-        bot BOOLEAN DEFAULT 0,
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-      )
-    `);
-
-    // Table des membres (liaison guild-user)
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS members (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guild_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        nickname TEXT,
-        roles TEXT DEFAULT '[]',
-        joined_at INTEGER NOT NULL,
-        left_at INTEGER,
-        warnings INTEGER DEFAULT 0,
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-        FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-        UNIQUE(guild_id, user_id)
-      )
-    `);
-
-    // Table des logs de modération
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS moderation_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guild_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        moderator_id TEXT NOT NULL,
-        action TEXT NOT NULL,
-        reason TEXT,
-        duration INTEGER,
-        expires_at INTEGER,
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-      )
-    `);
-
-    // Index pour améliorer les performances
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_members_guild ON members(guild_id);
-      CREATE INDEX IF NOT EXISTS idx_members_user ON members(user_id);
-      CREATE INDEX IF NOT EXISTS idx_moderation_guild ON moderation_logs(guild_id);
-      CREATE INDEX IF NOT EXISTS idx_moderation_user ON moderation_logs(user_id);
-    `);
-
-    logger.info('✅ Database tables initialized');
   }
 
   /**
