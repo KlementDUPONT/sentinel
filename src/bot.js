@@ -41,48 +41,36 @@ class SentinelBot {
     this.commandHandler = new CommandHandler(this.client);
   }
 
-  async setupHealthCheck() {
-    return new Promise((resolve, reject) => {
-      const app = express();
-      const port = process.env.PORT || 8000;
+  setupHealthCheck() {
+    const app = express();
+    const port = process.env.PORT || 8000;
 
-      logger.info('🔧 Setting up health check routes...');
-
-      app.get('/health', (req, res) => {
-        logger.info('🏥 Health check requested');
-        const health = {
-          status: 'ok',
-          uptime: process.uptime(),
-          timestamp: Date.now(),
-          bot: {
-            ready: this.client.isReady(),
-            guilds: this.client.guilds.cache.size,
-            users: this.client.users.cache.size,
-          }
-        };
-        res.status(200).json(health);
+    // Health check endpoint - répond TOUJOURS, même si Discord n'est pas connecté
+    app.get('/health', (req, res) => {
+      res.status(200).json({
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: Date.now()
       });
+    });
 
-      app.get('/', (req, res) => {
-        logger.info('📡 Root endpoint requested');
-        res.status(200).json({
-          name: 'Sentinel Bot',
-          version: config.version,
-          status: this.client.isReady() ? 'online' : 'offline',
-          uptime: process.uptime()
-        });
+    app.get('/', (req, res) => {
+      res.status(200).json({
+        name: 'Sentinel Bot',
+        version: config.version,
+        status: this.client.isReady() ? 'online' : 'starting',
+        uptime: process.uptime(),
+        bot: {
+          ready: this.client.isReady(),
+          guilds: this.client.guilds.cache.size,
+          users: this.client.users.cache.size,
+        }
       });
+    });
 
-      const server = app.listen(port, '0.0.0.0', () => {
-        logger.info('✅ Health check server READY on 0.0.0.0:' + port);
-        logger.info('🔗 Endpoints: /health and /');
-        resolve(server);
-      });
-
-      server.on('error', (error) => {
-        logger.error('❌ Express server error:', error);
-        reject(error);
-      });
+    // Démarrer le serveur IMMÉDIATEMENT
+    app.listen(port, '0.0.0.0', () => {
+      logger.info('🌐 Health check server running on port ' + port);
     });
   }
 
@@ -140,25 +128,13 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// Démarrage dans le bon ordre
-async function start() {
-  try {
-    const bot = new SentinelBot();
-    
-    // 1. Démarrer Express EN PREMIER
-    logger.info('🌐 Starting health check server...');
-    await bot.setupHealthCheck();
-    logger.info('✅ Health check server ready');
-    
-    // 2. PUIS initialiser Discord
-    logger.info('🤖 Starting Discord bot...');
-    await bot.initialize();
-    
-  } catch (error) {
-    logger.error('❌ Failed to start bot:', error);
-    process.exit(1);
-  }
-}
+// 🔥 DÉMARRAGE : Express EN PREMIER, Discord EN ARRIÈRE-PLAN
+const bot = new SentinelBot();
 
-// Lancer
-start();
+// 1. Démarrer Express IMMÉDIATEMENT
+bot.setupHealthCheck();
+
+// 2. Initialiser Discord en arrière-plan (sans bloquer)
+bot.initialize();
+
+export default bot;
