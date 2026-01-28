@@ -3,11 +3,11 @@ import { SlashCommandBuilder } from 'discord.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('pay')
-    .setDescription('Transférer de l'argent à un autre utilisateur')
+    .setDescription('Transférer de l\'argent à un autre utilisateur')
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('L'utilisateur à payer')
+        .setDescription('L\'utilisateur à payer')
         .setRequired(true)
     )
     .addIntegerOption(option =>
@@ -76,7 +76,7 @@ export default {
       // Vérifier que l'expéditeur a assez d'argent
       if (senderData.balance < amount) {
         return await interaction.reply({
-          content: `❌ Vous n'avez pas assez d'argent. Vous avez **${senderData.balance.toLocaleString()} 🪙** et vous essayez de payer **${amount.toLocaleString()} 🪙**.`,
+          content: '❌ Vous n\'avez pas assez d\'argent. Vous avez **' + senderData.balance.toLocaleString() + ' 🪙** et vous essayez de payer **' + amount.toLocaleString() + ' 🪙**.',
           flags: 64
         });
       }
@@ -88,7 +88,7 @@ export default {
       // Vérifier que le destinataire ne dépasse pas la limite
       if (newTargetBalance > 999999999) {
         return await interaction.reply({
-          content: `❌ Cette transaction dépasserait la limite de balance de ${target.tag} (maximum : 999,999,999 🪙).`,
+          content: '❌ Cette transaction dépasserait la limite de balance de ' + target.tag + ' (maximum : 999,999,999 🪙).',
           flags: 64
         });
       }
@@ -101,16 +101,16 @@ export default {
       const successEmbed = {
         color: 0x00ff00,
         title: '💸 Transaction réussie',
-        description: `${user} a transféré **${amount.toLocaleString()} 🪙** à ${target}`,
+        description: user.toString() + ' a transféré **' + amount.toLocaleString() + ' 🪙** à ' + target.toString(),
         fields: [
           {
             name: '💰 Nouvelle balance',
-            value: `Vous avez maintenant **${newSenderBalance.toLocaleString()} 🪙**`,
+            value: 'Vous avez maintenant **' + newSenderBalance.toLocaleString() + ' 🪙**',
             inline: false
           }
         ],
         footer: {
-          text: `Sentinel Bot • ${new Date().toLocaleDateString('fr-FR')}`,
+          text: 'Sentinel Bot • ' + new Date().toLocaleDateString('fr-FR'),
           icon_url: client.user.displayAvatarURL()
         },
         timestamp: new Date().toISOString()
@@ -122,12 +122,12 @@ export default {
       try {
         const dmEmbed = {
           color: 0x00ff00,
-          title: '💰 Vous avez reçu de l'argent !',
-          description: `${user.tag} vous a envoyé **${amount.toLocaleString()} 🪙** sur le serveur **${guild.name}**`,
+          title: '💰 Vous avez reçu de l\'argent !',
+          description: user.tag + ' vous a envoyé **' + amount.toLocaleString() + ' 🪙** sur le serveur **' + guild.name + '**',
           fields: [
             {
               name: '💵 Votre nouvelle balance',
-              value: `**${newTargetBalance.toLocaleString()} 🪙**`,
+              value: '**' + newTargetBalance.toLocaleString() + ' 🪙**',
               inline: false
             }
           ],
@@ -145,7 +145,7 @@ export default {
 
     } catch (error) {
       console.error('Erreur dans la commande pay:', error);
-
+      
       const errorMessage = interaction.replied || interaction.deferred
         ? { content: '❌ Une erreur est survenue lors de la transaction.', flags: 64 }
         : { content: '❌ Une erreur est survenue lors de la transaction.', flags: 64 };
