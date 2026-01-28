@@ -37,7 +37,7 @@ export default {
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     const type = interaction.options.getString('type');
     const name = interaction.options.getString('nom');

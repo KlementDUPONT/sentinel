@@ -26,7 +26,7 @@ export default {
   cooldown: 5,
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     const amount = interaction.options.getInteger('nombre');
     const targetUser = interaction.options.getUser('utilisateur');

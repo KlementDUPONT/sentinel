@@ -79,7 +79,7 @@ class Pagination {
    */
   static async handlePagination(interaction, embeds, timeout = 120000) {
     if (embeds.length === 0) {
-      return interaction.reply({ content: 'Aucune donnée à afficher.', ephemeral: true });
+      return interaction.reply({ content: 'Aucune donnée à afficher.', flags: 64 });
     }
 
     let currentPage = 0;

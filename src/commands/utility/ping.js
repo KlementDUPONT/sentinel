@@ -13,7 +13,7 @@ export default {
     const sent = await interaction.reply({
       content: '🏓 Calcul de la latence...',
       fetchReply: true,
-      ephemeral: true,
+      flags: 64,
     });
 
     const latency = sent.createdTimestamp - interaction.createdTimestamp;

@@ -21,7 +21,7 @@ export default {
       return showCommandHelp(interaction, commandName);
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     try {
       // Récupérer toutes les commandes par catégorie
@@ -106,7 +106,7 @@ async function showCommandHelp(interaction, commandName) {
         'Commande introuvable',
         `La commande \`${commandName}\` n'existe pas.`
       )],
-      ephemeral: true,
+      flags: 64,
     });
   }
 
@@ -157,5 +157,5 @@ async function showCommandHelp(interaction, commandName) {
     });
   }
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: 64 });
 }
