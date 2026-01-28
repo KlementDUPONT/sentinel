@@ -21,7 +21,6 @@ export default {
     const target = interaction.options.getUser('user');
 
     try {
-      // Récupérer tous les warns
       const allWarns = client.db.getWarns(target.id, guild.id);
       const activeWarns = allWarns.filter(w => w.active === 1);
       const inactiveWarns = allWarns.filter(w => w.active === 0);
@@ -33,7 +32,6 @@ export default {
         });
       }
 
-      // Construire l'embed
       const embed = {
         color: activeWarns.length > 0 ? 0xff0000 : 0x00ff00,
         title: `⚠️ Avertissements de ${target.tag}`,
@@ -46,9 +44,8 @@ export default {
         timestamp: new Date().toISOString()
       };
 
-      // Ajouter les warns actifs
       if (activeWarns.length > 0) {
-        for (const warn of activeWarns.slice(0, 10)) { // Limite à 10 pour pas dépasser
+        for (const warn of activeWarns.slice(0, 10)) {
           const moderator = await client.users.fetch(warn.moderator_id).catch(() => null);
           const date = new Date(warn.created_at).toLocaleDateString('fr-FR');
           
@@ -68,7 +65,6 @@ export default {
         }
       }
 
-      // Ajouter stats des warns supprimés
       if (inactiveWarns.length > 0) {
         embed.fields.push({
           name: '🗑️ Historique',
@@ -77,13 +73,12 @@ export default {
         });
       }
 
-      // Créer les boutons d'action
       const buttons = new ActionRowBuilder();
 
       if (activeWarns.length > 0) {
         buttons.addComponents(
           new ButtonBuilder()
-            .setCustomId(`clearwarns_${target.id}`)
+            .setCustomId('clearwarns_' + target.id)
             .setLabel('Supprimer tous les warns')
             .setEmoji('🗑️')
             .setStyle(ButtonStyle.Danger)
@@ -92,7 +87,7 @@ export default {
 
       buttons.addComponents(
         new ButtonBuilder()
-          .setCustomId(`refresh_warnings_${target.id}`)
+          .setCustomId('refresh_warnings_' + target.id)
           .setLabel('Actualiser')
           .setEmoji('🔄')
           .setStyle(ButtonStyle.Secondary)

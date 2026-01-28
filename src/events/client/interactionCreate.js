@@ -341,7 +341,7 @@ async function handleWarningButtons(interaction) {
       if (activeWarns.length > 0) {
         buttons.addComponents(
           new ButtonBuilder()
-            .setCustomId(`clearwarns_${targetId}`)
+            .setCustomId('clearwarns_' + targetId)
             .setLabel('Supprimer tous les warns')
             .setEmoji('🗑️')
             .setStyle(ButtonStyle.Danger)
@@ -350,7 +350,7 @@ async function handleWarningButtons(interaction) {
 
       buttons.addComponents(
         new ButtonBuilder()
-          .setCustomId(`refresh_warnings_${targetId}`)
+          .setCustomId('refresh_warnings_' + targetId)
           .setLabel('Actualiser')
           .setEmoji('🔄')
           .setStyle(ButtonStyle.Secondary)
