@@ -2,7 +2,6 @@ import winston from 'winston';
 import { mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import config from '../config/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,19 +14,19 @@ if (!existsSync(logsDir)) {
 
 // Format personnalisé pour les logs
 const customFormat = winston.format.printf(({ level, message, timestamp, ...metadata }) => {
-  let msg = `${timestamp} [${level}]: ${message}`;
+  let msg = timestamp + ' [' + level + ']: ' + message;
   
   // Ajouter les métadonnées si présentes
   if (Object.keys(metadata).length > 0) {
-    msg += ` ${JSON.stringify(metadata)}`;
+    msg += ' ' + JSON.stringify(metadata);
   }
   
   return msg;
 });
 
-// Configuration du logger
+// Configuration du logger (SANS dépendance au config pour éviter les erreurs circulaires)
 const logger = winston.createLogger({
-  level: config.logging.level,
+  level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
@@ -69,23 +68,23 @@ const logger = winston.createLogger({
 
 // Méthodes utilitaires
 logger.command = (user, command, guild) => {
-  logger.info(`Command executed: /${command} by ${user} in ${guild || 'DM'}`);
+  logger.info('Command executed: /' + command + ' by ' + user + ' in ' + (guild || 'DM'));
 };
 
 logger.event = (eventName, details = '') => {
-  logger.info(`Event: ${eventName} ${details}`);
+  logger.info('Event: ' + eventName + ' ' + details);
 };
 
 logger.database = (action, details = '') => {
-  logger.debug(`Database: ${action} ${details}`);
+  logger.debug('Database: ' + action + ' ' + details);
 };
 
 logger.api = (method, endpoint, status) => {
-  logger.info(`API: ${method} ${endpoint} - ${status}`);
+  logger.info('API: ' + method + ' ' + endpoint + ' - ' + status);
 };
 
 // En développement, afficher plus de détails
-if (config.env.isDevelopment) {
+if (process.env.NODE_ENV === 'development') {
   logger.level = 'debug';
   logger.debug('Logger initialized in development mode');
 }

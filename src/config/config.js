@@ -18,6 +18,12 @@ const config = {
   port: parseInt(process.env.PORT) || 8000,
 };
 
+  // Logging (AJOUT IMPORTANT)
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    format: process.env.LOG_FORMAT || 'simple'
+  }
+
 // Validation des variables obligatoires
 if (!config.token && process.env.NODE_ENV === 'production') {
   console.error('❌ DISCORD_TOKEN is missing in environment variables!');
