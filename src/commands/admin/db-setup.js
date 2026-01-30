@@ -3,7 +3,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.
 export default {
   data: new SlashCommandBuilder()
     .setName('db-setup')
-    .setDescription('Setup verification system in database (admin only)')
+    .setDescription('Setup verification system columns (admin only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   category: 'admin',
@@ -14,39 +14,26 @@ export default {
 
       const db = interaction.client.db;
 
-      if (!db) {
-        return interaction.editReply('❌ Database handler is not available.');
+      if (!db || !db.addVerificationColumns) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#FF0000')
+          .setTitle('❌ Error')
+          .setDescription('Database handler does not support verification columns.')
+          .setTimestamp();
+        
+        return interaction.editReply({ embeds: [errorEmbed] });
       }
 
-      // Récupérer ou créer la guild
-      let guildData = db.getGuild(interaction.guildId);
-      
-      if (!guildData) {
-        db.createGuild(interaction.guildId, interaction.guild.name);
-        guildData = db.getGuild(interaction.guildId);
-      }
-
-      // Vérifier si les colonnes existent déjà
-      const hasVerificationChannel = 'verification_channel' in guildData;
-      const hasVerificationRole = 'verification_role' in guildData;
+      // Ajouter les colonnes
+      const success = db.addVerificationColumns();
 
       const embed = new EmbedBuilder()
-        .setColor(hasVerificationChannel && hasVerificationRole ? '#00FF00' : '#FFA500')
-        .setTitle('🔧 Database Setup')
-        .setDescription('Verification system database check:')
-        .addFields(
-          { 
-            name: 'Verification Channel Column', 
-            value: hasVerificationChannel ? '✅ Exists' : '⚠️ Missing (will be created on first setup)', 
-            inline: true 
-          },
-          { 
-            name: 'Verification Role Column', 
-            value: hasVerificationRole ? '✅ Exists' : '⚠️ Missing (will be created on first setup)', 
-            inline: true 
-          }
+        .setColor(success ? '#00FF00' : '#FF0000')
+        .setTitle(success ? '✅ Database Setup Complete' : '❌ Setup Failed')
+        .setDescription(success 
+          ? 'Verification columns have been created successfully!\n\n**Next step:** Use `/setup-verification`'
+          : 'Failed to create verification columns. Check bot logs for details.'
         )
-        .setFooter({ text: 'Next step: Use /setup-verification' })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
@@ -57,7 +44,7 @@ export default {
       const errorEmbed = new EmbedBuilder()
         .setColor('#FF0000')
         .setTitle('❌ Error')
-        .setDescription('An error occurred during database setup.')
+        .setDescription('An error occurred during setup.')
         .addFields({ name: 'Error', value: error.message })
         .setTimestamp();
       

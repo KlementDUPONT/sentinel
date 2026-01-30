@@ -64,52 +64,19 @@ export default {
       let guildData = db.getGuild(interaction.guildId);
       if (!guildData) {
         db.createGuild(interaction.guildId, interaction.guild.name);
-        guildData = db.getGuild(interaction.guildId);
       }
 
-      // Essayer d'abord avec updateGuildConfig
-      try {
-        db.updateGuildConfig(interaction.guildId, {
-          verification_channel: channel.id,
-          verification_role: role.id
-        });
-      } catch (sqlError) {
-        // Si ça échoue, c'est que les colonnes n'existent pas
-        // On va les créer manuellement
-        if (sqlError.message.includes('WHERE') || sqlError.message.includes('no such column')) {
-          try {
-            // Accéder à la DB brute si possible
-            const rawDb = db.db || db.database || db.connection;
-            
-            if (rawDb && rawDb.prepare) {
-              // Ajouter les colonnes
-              try {
-                rawDb.prepare('ALTER TABLE guilds ADD COLUMN verification_channel TEXT').run();
-              } catch (e) {
-                // Colonne existe déjà
-              }
-              
-              try {
-                rawDb.prepare('ALTER TABLE guilds ADD COLUMN verification_role TEXT').run();
-              } catch (e) {
-                // Colonne existe déjà
-              }
+      // Mettre à jour la configuration
+      const success = db.updateVerification(interaction.guildId, channel.id, role.id);
 
-              // Réessayer l'update
-              rawDb.prepare(`
-                UPDATE guilds 
-                SET verification_channel = ?, verification_role = ? 
-                WHERE guild_id = ?
-              `).run(channel.id, role.id, interaction.guildId);
-            } else {
-              throw new Error('Cannot access database to create columns. Please contact the developer.');
-            }
-          } catch (createError) {
-            throw new Error('Failed to create verification columns: ' + createError.message);
-          }
-        } else {
-          throw sqlError;
-        }
+      if (!success) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#FF0000')
+          .setTitle('❌ Error')
+          .setDescription('Failed to update verification settings. Check bot logs.')
+          .setTimestamp();
+        
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       const embed = new EmbedBuilder()
