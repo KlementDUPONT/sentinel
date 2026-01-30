@@ -22,9 +22,10 @@ export default {
   category: 'admin',
 
   async execute(interaction) {
-    try {
-      await interaction.deferReply({ ephemeral: true });
+    // DEFER IMMÉDIATEMENT - AVANT TOUT
+    await interaction.deferReply({ ephemeral: true });
 
+    try {
       const channel = interaction.options.getChannel('channel');
       const role = interaction.options.getRole('role');
 
@@ -104,8 +105,10 @@ export default {
         .addFields({ name: 'Error Details', value: error.message || 'Unknown error' })
         .setTimestamp();
       
-      if (interaction.deferred) {
+      try {
         await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Failed to send error message:', replyError);
       }
     }
   }
