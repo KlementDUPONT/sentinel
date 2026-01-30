@@ -73,7 +73,7 @@ async function handleCommand(interaction) {
     }
 
     // Check cooldown
-    const cooldownKey = `${interaction.commandName}-${interaction.user.id}`;
+    const cooldownKey = interaction.commandName + '-' + interaction.user.id;
     const now = Date.now();
     const cooldownAmount = (command.cooldown || 3) * 1000;
 
@@ -83,7 +83,7 @@ async function handleCommand(interaction) {
       if (now < expirationTime) {
         const timeLeft = (expirationTime - now) / 1000;
         return await interaction.reply({
-          content: `⏰ Veuillez attendre ${timeLeft.toFixed(1)} seconde(s) avant de réutiliser \`${interaction.commandName}\`.`,
+          content: '⏰ Veuillez attendre ' + timeLeft.toFixed(1) + ' seconde(s) avant de réutiliser `' + interaction.commandName + '`.',
           flags: 64
         });
       }
@@ -96,7 +96,7 @@ async function handleCommand(interaction) {
 
       if (missingPerms.length > 0) {
         return await interaction.reply({
-          content: `❌ Je n'ai pas les permissions nécessaires: \`${missingPerms.join(', ')}\``,
+          content: '❌ Je n\'ai pas les permissions nécessaires: `' + missingPerms.join(', ') + '`',
           flags: 64
         });
       }
@@ -115,7 +115,7 @@ async function handleCommand(interaction) {
 
       if (missingPerms.length > 0) {
         return await interaction.reply({
-          content: `❌ Vous n'avez pas les permissions nécessaires: \`${missingPerms.join(', ')}\``,
+          content: '❌ Vous n\'avez pas les permissions nécessaires: `' + missingPerms.join(', ') + '`',
           flags: 64
         });
       }
@@ -130,16 +130,15 @@ async function handleCommand(interaction) {
 
     // Log command execution
     logger.info(
-      `Command executed: /${interaction.commandName} by ${interaction.user.tag} in ${
-        interaction.guild ? interaction.guild.name : 'DM'
-      }`
+      'Command executed: /' + interaction.commandName + ' by ' + interaction.user.tag + ' in ' + 
+      (interaction.guild ? interaction.guild.name : 'DM')
     );
 
   } catch (error) {
-    logger.error(`Error executing command ${interaction.commandName}:`, error);
-    logger.error(`❌ Command Error [${interaction.commandName}]:`, {
-      user: `${interaction.user.tag} (${interaction.user.id})`,
-      guild: interaction.guild ? `${interaction.guild.name} (${interaction.guild.id})` : 'DM',
+    logger.error('Error executing command ' + interaction.commandName + ':', error);
+    logger.error('❌ Command Error [' + interaction.commandName + ']:', {
+      user: interaction.user.tag + ' (' + interaction.user.id + ')',
+      guild: interaction.guild ? interaction.guild.name + ' (' + interaction.guild.id + ')' : 'DM',
       error: error.message
     });
 
@@ -160,12 +159,18 @@ async function handleButton(interaction) {
   const { customId, client, guild, user } = interaction;
   const [action, ...args] = customId.split('_');
   
-  logger.info(`Button clicked: ${customId} by ${user.tag}`);
+  logger.info('Button clicked: ' + customId + ' by ' + user.tag);
 
   try {
     // Gestion des boutons de warnings
     if (action === 'clearwarns' || (action === 'refresh' && args[0] === 'warnings')) {
       await handleWarningButtons(interaction);
+      return;
+    }
+
+    // Gestion des boutons de vérification CAPTCHA
+    if (action === 'verify') {
+      await handleVerifyButtons(interaction);
       return;
     }
 
@@ -221,7 +226,7 @@ async function handleWarningButtons(interaction) {
 
       if (activeWarns.length === 0) {
         return await interaction.reply({
-          content: `ℹ️ ${target.tag} n'a aucun avertissement actif.`,
+          content: 'ℹ️ ' + target.tag + ' n\'a aucun avertissement actif.',
           flags: 64
         });
       }
@@ -233,17 +238,17 @@ async function handleWarningButtons(interaction) {
       stmt.run(targetId, guild.id);
 
       await interaction.reply({
-        content: `✅ ${activeWarns.length} avertissement${activeWarns.length > 1 ? 's' : ''} supprimé${activeWarns.length > 1 ? 's' : ''} pour ${target.tag}.`,
+        content: '✅ ' + activeWarns.length + ' avertissement' + (activeWarns.length > 1 ? 's' : '') + ' supprimé' + (activeWarns.length > 1 ? 's' : '') + ' pour ' + target.tag + '.',
         flags: 64
       });
 
       // Mettre à jour le message
       const updatedEmbed = {
         color: 0x00ff00,
-        title: `⚠️ Avertissements de ${target.tag}`,
-        description: `✅ Tous les avertissements ont été supprimés par ${user.tag}`,
+        title: '⚠️ Avertissements de ' + target.tag,
+        description: '✅ Tous les avertissements ont été supprimés par ' + user.tag,
         footer: {
-          text: `Sentinel Bot • ${new Date().toLocaleDateString('fr-FR')}`,
+          text: 'Sentinel Bot • ' + new Date().toLocaleDateString('fr-FR'),
           icon_url: client.user.displayAvatarURL()
         },
         timestamp: new Date().toISOString()
@@ -256,7 +261,7 @@ async function handleWarningButtons(interaction) {
 
       // Log
       const guildData = client.db.getGuild(guild.id);
-      if (guildData?.log_channel) {
+      if (guildData && guildData.log_channel) {
         const logChannel = guild.channels.cache.get(guildData.log_channel);
         if (logChannel) {
           const logEmbed = {
@@ -265,17 +270,17 @@ async function handleWarningButtons(interaction) {
             fields: [
               {
                 name: '👤 Utilisateur',
-                value: `${target.tag} (${targetId})`,
+                value: target.tag + ' (' + targetId + ')',
                 inline: true
               },
               {
                 name: '👮 Modérateur',
-                value: `${user.tag} (${user.id})`,
+                value: user.tag + ' (' + user.id + ')',
                 inline: true
               },
               {
                 name: '📊 Nombre',
-                value: `${activeWarns.length} warn${activeWarns.length > 1 ? 's' : ''}`,
+                value: activeWarns.length + ' warn' + (activeWarns.length > 1 ? 's' : ''),
                 inline: true
               }
             ],
@@ -298,7 +303,7 @@ async function handleWarningButtons(interaction) {
 
       if (allWarns.length === 0) {
         return await interaction.update({
-          content: `✅ ${target.tag} n'a aucun avertissement.`,
+          content: '✅ ' + target.tag + ' n\'a aucun avertissement.',
           embeds: [],
           components: []
         });
@@ -306,11 +311,11 @@ async function handleWarningButtons(interaction) {
 
       const embed = {
         color: activeWarns.length > 0 ? 0xff0000 : 0x00ff00,
-        title: `⚠️ Avertissements de ${target.tag}`,
-        description: `**${activeWarns.length}** avertissement${activeWarns.length > 1 ? 's' : ''} actif${activeWarns.length > 1 ? 's' : ''}`,
+        title: '⚠️ Avertissements de ' + target.tag,
+        description: '**' + activeWarns.length + '** avertissement' + (activeWarns.length > 1 ? 's' : '') + ' actif' + (activeWarns.length > 1 ? 's' : ''),
         fields: [],
         footer: {
-          text: `Sentinel Bot • Actualisé à ${new Date().toLocaleTimeString('fr-FR')}`,
+          text: 'Sentinel Bot • Actualisé à ' + new Date().toLocaleTimeString('fr-FR'),
           icon_url: client.user.displayAvatarURL()
         },
         timestamp: new Date().toISOString()
@@ -322,8 +327,8 @@ async function handleWarningButtons(interaction) {
           const date = new Date(warn.created_at).toLocaleDateString('fr-FR');
           
           embed.fields.push({
-            name: `⚠️ Warn #${warn.id} - ${date}`,
-            value: `**Raison:** ${warn.reason}\n**Modérateur:** ${moderator ? moderator.tag : 'Inconnu'}`,
+            name: '⚠️ Warn #' + warn.id + ' - ' + date,
+            value: '**Raison:** ' + warn.reason + '\n**Modérateur:** ' + (moderator ? moderator.tag : 'Inconnu'),
             inline: false
           });
         }
@@ -332,7 +337,7 @@ async function handleWarningButtons(interaction) {
       if (inactiveWarns.length > 0) {
         embed.fields.push({
           name: '🗑️ Historique',
-          value: `${inactiveWarns.length} avertissement${inactiveWarns.length > 1 ? 's' : ''} supprimé${inactiveWarns.length > 1 ? 's' : ''}`,
+          value: inactiveWarns.length + ' avertissement' + (inactiveWarns.length > 1 ? 's' : '') + ' supprimé' + (inactiveWarns.length > 1 ? 's' : ''),
           inline: false
         });
       }
@@ -379,10 +384,98 @@ async function handleWarningButtons(interaction) {
   }
 }
 
+async function handleVerifyButtons(interaction) {
+  const { customId, client, guild, user } = interaction;
+  const [action, buttonIndex, userId, correctIndex] = customId.split('_');
+
+  // Vérifier que c'est le bon utilisateur
+  if (user.id !== userId) {
+    return await interaction.reply({
+      content: '❌ Ce CAPTCHA n\'est pas pour vous !',
+      flags: 64
+    });
+  }
+
+  // Vérifier la réponse
+  if (buttonIndex !== correctIndex) {
+    await interaction.update({
+      content: '❌ Mauvaise réponse ! Réessayez avec `/verify`.',
+      embeds: [],
+      components: []
+    });
+    return;
+  }
+
+  // Bonne réponse !
+  try {
+    const guildData = client.db.getGuild(guild.id);
+    
+    if (!guildData || !guildData.verification_role) {
+      return await interaction.update({
+        content: '❌ Le système de vérification n\'est pas configuré.',
+        embeds: [],
+        components: []
+      });
+    }
+
+    const role = guild.roles.cache.get(guildData.verification_role);
+
+    if (!role) {
+      return await interaction.update({
+        content: '❌ Le rôle de vérification est introuvable.',
+        embeds: [],
+        components: []
+      });
+    }
+
+    const member = await guild.members.fetch(user.id);
+    await member.roles.add(role);
+
+    await interaction.update({
+      content: '✅ Vérification réussie ! Bienvenue sur ' + guild.name + ' !',
+      embeds: [],
+      components: []
+    });
+
+    // Log
+    if (guildData && guildData.log_channel) {
+      const logChannel = guild.channels.cache.get(guildData.log_channel);
+      if (logChannel) {
+        const logEmbed = {
+          color: 0x00ff00,
+          title: '✅ Membre vérifié',
+          fields: [
+            {
+              name: '👤 Utilisateur',
+              value: user.tag + ' (' + user.id + ')',
+              inline: true
+            },
+            {
+              name: '🎭 Rôle',
+              value: role.name,
+              inline: true
+            }
+          ],
+          timestamp: new Date().toISOString()
+        };
+
+        await logChannel.send({ embeds: [logEmbed] });
+      }
+    }
+  } catch (error) {
+    logger.error('Erreur verification:', error);
+    await interaction.update({
+      content: '❌ Une erreur est survenue.',
+      embeds: [],
+      components: []
+    });
+  }
+}
+
 async function handleSelectMenu(interaction) {
   const [action] = interaction.customId.split('_');
   
-  logger.info(`Select menu used: ${interaction.customId} by ${interaction.user.tag}`);
+  logger.info('Select menu used: ' + interaction.customId + ' by ' + interaction.user.tag);
 
   // Handle select menu interactions
   switch (action) {
@@ -400,7 +493,7 @@ async function handleSelectMenu(interaction) {
 async function handleModal(interaction) {
   const [action] = interaction.customId.split('_');
   
-  logger.info(`Modal submitted: ${interaction.customId} by ${interaction.user.tag}`);
+  logger.info('Modal submitted: ' + interaction.customId + ' by ' + interaction.user.tag);
 
   // Handle modal submissions
   switch (action) {

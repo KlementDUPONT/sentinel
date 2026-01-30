@@ -1,63 +1,76 @@
-import { EmbedBuilder } from 'discord.js';
-import logger from '../../utils/logger.js';
-
 export default {
   name: 'guildMemberAdd',
   category: 'member',
 
-  async execute(member) {
+  async execute(member, client) {
+    const { guild } = member;
+
     try {
-      const { guild, user } = member;
+      // Récupérer la configuration
+      const guildData = client.db.getGuild(guild.id);
 
-      // Create user in database
-      member.client.db.createUser(user.id, guild.id);
-
-      // Get guild config
-      const guildData = member.client.db.getGuild(guild.id);
-      
-      if (!guildData) {
-        return;
+      if (!guildData || !guildData.verification_channel) {
+        return; // Pas de système de vérification configuré
       }
 
-      // Auto-role
-      if (guildData.auto_role) {
-        const autoRole = guild.roles.cache.get(guildData.auto_role);
-        if (autoRole) {
-          try {
-            await member.roles.add(autoRole);
-            logger.info(`Added auto-role ${autoRole.name} to ${user.tag}`);
-          } catch (error) {
-            logger.error(`Failed to add auto-role to ${user.tag}:`, error);
+      const verificationChannel = guild.channels.cache.get(guildData.verification_channel);
+      const verificationRole = guild.roles.cache.get(guildData.verification_role);
+
+      if (!verificationChannel || !verificationRole) {
+        return; // Canal ou rôle introuvable
+      }
+
+      // Envoyer un message de bienvenue
+      const embed = {
+        color: 0x5865f2,
+        title: '👋 Bienvenue ' + member.user.username + ' !',
+        description: 'Bienvenue sur **' + guild.name + '** !\n\nPour accéder aux autres salons, vous devez vous vérifier.',
+        fields: [
+          {
+            name: '📝 Comment faire ?',
+            value: 'Utilisez la commande `/verify` dans ce salon.',
+            inline: false
+          },
+          {
+            name: '⏰ Temps limité',
+            value: 'Vous avez **10 minutes** pour vous vérifier, sinon vous serez expulsé.',
+            inline: false
           }
+        ],
+        thumbnail: {
+          url: member.user.displayAvatarURL()
+        },
+        footer: {
+          text: 'Sentinel Bot',
+          icon_url: client.user.displayAvatarURL()
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      await verificationChannel.send({
+        content: member.toString(),
+        embeds: [embed]
+      });
+
+      // Auto-kick après 10 minutes si pas vérifié
+      setTimeout(async () => {
+        try {
+          const stillMember = await guild.members.fetch(member.id).catch(() => null);
+          
+          if (stillMember && !stillMember.roles.cache.has(guildData.verification_role)) {
+            await stillMember.kick('Non vérifié après 10 minutes');
+            
+            await verificationChannel.send({
+              content: '⚠️ ' + member.user.tag + ' a été expulsé pour non-vérification.'
+            });
+          }
+        } catch (error) {
+          console.error('Erreur auto-kick:', error);
         }
-      }
-
-      // Welcome message
-      if (guildData.welcome_channel) {
-        const welcomeChannel = guild.channels.cache.get(guildData.welcome_channel);
-        
-        if (welcomeChannel) {
-          const embed = new EmbedBuilder()
-            .setColor('#00FF00')
-            .setTitle('👋 Bienvenue !')
-            .setDescription(`Bienvenue ${user} sur **${guild.name}** !`)
-            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
-            .addFields(
-              { name: '👤 Utilisateur', value: user.tag, inline: true },
-              { name: '🆔 ID', value: user.id, inline: true },
-              { name: '📊 Membres', value: `${guild.memberCount}`, inline: true }
-            )
-            .setTimestamp()
-            .setFooter({ text: guild.name, iconURL: guild.iconURL() });
-
-          await welcomeChannel.send({ embeds: [embed] });
-        }
-      }
-
-      logger.info(`👋 ${user.tag} joined ${guild.name}`);
+      }, 10 * 60 * 1000); // 10 minutes
 
     } catch (error) {
-      logger.error('Error in guildMemberAdd event:', error);
+      console.error('Erreur dans guildMemberAdd:', error);
     }
-  },
+  }
 };
