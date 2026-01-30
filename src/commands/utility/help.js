@@ -1,148 +1,57 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Afficher le menu d\'aide')
-    .addStringOption(option =>
-      option
-        .setName('command')
-        .setDescription('Nom de la commande pour obtenir plus d\'informations')
-        .setRequired(false)
-    ),
+    .setDescription('Afficher le menu d\'aide'),
 
   category: 'utility',
 
   async execute(interaction) {
-    // Defer immédiatement pour éviter le timeout
-    await interaction.deferReply();
-
     const { client } = interaction;
-    const commandName = interaction.options.getString('command');
 
-    try {
-      // Aide pour une commande spécifique
-      if (commandName) {
-        const command = client.commands.get(commandName.toLowerCase());
-
-        if (!command) {
-          return await interaction.editReply({
-            content: '❌ Cette commande n\'existe pas.'
-          });
-        }
-
-        const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle('📖 Aide: /' + command.data.name)
-          .setDescription(command.data.description || 'Aucune description disponible')
-          .addFields(
-            {
-              name: '📁 Catégorie',
-              value: command.category || 'Aucune',
-              inline: true
-            },
-            {
-              name: '⏱️ Cooldown',
-              value: (command.cooldown || 3) + ' secondes',
-              inline: true
-            }
-          )
-          .setFooter({
-            text: 'Sentinel Bot • ' + new Date().toLocaleDateString('fr-FR'),
-            iconURL: client.user.displayAvatarURL()
-          })
-          .setTimestamp();
-
-        // Ajouter les options si elles existent
-        if (command.data.options && command.data.options.length > 0) {
-          const optionsText = command.data.options.map(opt => {
-            const required = opt.required ? '**[Requis]**' : '[Optionnel]';
-            return '`' + opt.name + '` ' + required + ' - ' + opt.description;
-          }).join('\n');
-
-          embed.addFields({
-            name: '⚙️ Options',
-            value: optionsText,
-            inline: false
-          });
-        }
-
-        return await interaction.editReply({ embeds: [embed] });
-      }
-
-      // Menu d'aide général
-      const categories = {};
-      
-      client.commands.forEach(cmd => {
-        const category = cmd.category || 'Autre';
-        if (!categories[category]) {
-          categories[category] = [];
-        }
-        categories[category].push(cmd);
-      });
-
-      const categoryEmojis = {
-        admin: '⚙️',
-        moderation: '🛡️',
-        economy: '💰',
-        fun: '🎮',
-        utility: '🔧',
-        levels: '📊'
-      };
-
-      const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('📚 Menu d\'aide - Sentinel Bot')
-        .setDescription('Utilisez `/help <commande>` pour plus d\'informations sur une commande spécifique.')
-        .setThumbnail(client.user.displayAvatarURL())
-        .setFooter({
-          text: 'Sentinel Bot • Version alpha.2',
-          iconURL: client.user.displayAvatarURL()
-        })
-        .setTimestamp();
-
-      // Ajouter chaque catégorie
-      for (const [category, commands] of Object.entries(categories)) {
-        const emoji = categoryEmojis[category.toLowerCase()] || '📁';
-        const commandList = commands
-          .map(cmd => '`/' + cmd.data.name + '`')
-          .join(', ');
-
-        embed.addFields({
-          name: emoji + ' ' + category.charAt(0).toUpperCase() + category.slice(1),
-          value: commandList || 'Aucune commande',
+    const embed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('📚 Aide - Sentinel Bot')
+      .setDescription('Liste des commandes disponibles')
+      .addFields(
+        {
+          name: '⚙️ Admin',
+          value: '`/config` `/reload` `/setup`',
           inline: false
-        });
-      }
+        },
+        {
+          name: '💰 Économie',
+          value: '`/balance` `/daily` `/work` `/pay` `/leaderboard`',
+          inline: false
+        },
+        {
+          name: '🛡️ Modération',
+          value: '`/ban` `/kick` `/warn` `/warnings` `/clearwarns` `/removewarn` `/clear`',
+          inline: false
+        },
+        {
+          name: '🎮 Fun',
+          value: '`/8ball` `/coinflip` `/dice`',
+          inline: false
+        },
+        {
+          name: '📊 Niveaux',
+          value: '`/rank`',
+          inline: false
+        },
+        {
+          name: '🔧 Utilitaire',
+          value: '`/help` `/ping` `/avatar` `/userinfo` `/serverinfo`',
+          inline: false
+        }
+      )
+      .setFooter({
+        text: 'Sentinel Bot • Version alpha.2',
+        iconURL: client.user.displayAvatarURL()
+      })
+      .setTimestamp();
 
-      // Menu déroulant pour naviguer
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('help_category')
-        .setPlaceholder('📂 Choisir une catégorie')
-        .addOptions(
-          Object.keys(categories).map(category => ({
-            label: category.charAt(0).toUpperCase() + category.slice(1),
-            description: categories[category].length + ' commande(s)',
-            value: category,
-            emoji: categoryEmojis[category.toLowerCase()] || '📁'
-          }))
-        );
-
-      const row = new ActionRowBuilder().addComponents(selectMenu);
-
-      await interaction.editReply({
-        embeds: [embed],
-        components: [row]
-      });
-
-    } catch (error) {
-      console.error('Error in help command:', error);
-      
-      if (interaction.deferred) {
-        await interaction.editReply({
-          content: '❌ Une erreur est survenue lors de l\'affichage de l\'aide.'
-        });
-      }
-    }
+    await interaction.reply({ embeds: [embed] });
   },
 };
