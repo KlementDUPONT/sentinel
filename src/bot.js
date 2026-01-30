@@ -113,6 +113,26 @@ class SentinelBot {
       logger.info('🔑 Token: ' + (config.token ? '✅ Found' : '❌ Missing'));
       logger.info('🆔 Client ID: ' + (config.clientId ? '✅ Found' : '❌ Missing'));
       logger.info('🏠 Guild ID: ' + (config.guildId ? '✅ Found' : '❌ Missing'));
+      
+      // DEBUG TOKEN
+      if (config.token) {
+        const tokenStart = config.token.substring(0, 10);
+        const tokenEnd = config.token.substring(config.token.length - 10);
+        logger.info('🔍 Token preview: ' + tokenStart + '...' + tokenEnd);
+        logger.info('🔍 Token length: ' + config.token.length + ' chars');
+        logger.info('🔍 Token type: ' + typeof config.token);
+        
+        // Vérifier les espaces
+        if (config.token.trim() !== config.token) {
+          logger.warn('⚠️ WARNING: Token has leading/trailing spaces!');
+        }
+        
+        // Vérifier le format du token Discord
+        if (!config.token.includes('.')) {
+          logger.error('❌ Token format seems invalid (missing dots)');
+        }
+      }
+      
       logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       if (!config.token) {
@@ -154,15 +174,43 @@ class SentinelBot {
 
       // Step 4: Connect to Discord
       logger.info('📦 Step 4/4: Connecting to Discord...');
+      logger.info('🔌 Attempting login with token...');
+      
       try {
-        await this.client.login(config.token);
+        // Nettoyer le token (enlever espaces et retours à la ligne)
+        const cleanToken = config.token.trim();
+        
+        await this.client.login(cleanToken);
         this.isInitialized = true;
         logger.info('✅ Discord connection established');
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         logger.info('✅ Bot initialization completed successfully');
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       } catch (loginError) {
-        logger.error('❌ Discord login failed:', loginError);
+        logger.error('❌ Discord login failed!');
+        logger.error('❌ Error name: ' + loginError.name);
+        logger.error('❌ Error message: ' + loginError.message);
+        logger.error('❌ Error code: ' + loginError.code);
+        
+        if (loginError.message.includes('TOKEN_INVALID')) {
+          logger.error('');
+          logger.error('🔴 INVALID TOKEN DETECTED!');
+          logger.error('');
+          logger.error('Solutions:');
+          logger.error('1. Go to https://discord.com/developers/applications');
+          logger.error('2. Select your bot');
+          logger.error('3. Go to "Bot" tab');
+          logger.error('4. Click "Reset Token"');
+          logger.error('5. Copy the NEW token');
+          logger.error('6. Update DISCORD_TOKEN in Railway variables');
+          logger.error('');
+          logger.error('Also check that these intents are enabled:');
+          logger.error('- Presence Intent');
+          logger.error('- Server Members Intent');
+          logger.error('- Message Content Intent');
+          logger.error('');
+        }
+        
         throw loginError;
       }
 
