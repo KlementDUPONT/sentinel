@@ -46,15 +46,17 @@ export default {
         });
       }
 
-      // Créer les boutons de vérification
+      // Créer les boutons de vérification avec IDs UNIQUES
       const colors = ['🔴', '🔵', '🟢', '🟡'];
-      const correctColor = colors[Math.floor(Math.random() * colors.length)];
+      const correctIndex = Math.floor(Math.random() * colors.length);
+      const correctColor = colors[correctIndex];
+      const timestamp = Date.now();
 
-      const buttons = colors.map(color => {
+      const buttons = colors.map((color, index) => {
         return new ButtonBuilder()
-          .setCustomId(`verify_${color === correctColor ? 'correct' : 'wrong'}_${interaction.user.id}`)
+          .setCustomId(`verify_${index === correctIndex ? 'correct' : 'wrong'}_${index}_${timestamp}_${interaction.user.id}`)
           .setLabel(color)
-          .setStyle(color === correctColor ? ButtonStyle.Success : ButtonStyle.Secondary);
+          .setStyle(index === correctIndex ? ButtonStyle.Success : ButtonStyle.Secondary);
       });
 
       // Mélanger les boutons
@@ -69,7 +71,7 @@ export default {
       });
 
       // Créer un collector pour les boutons
-      const filter = i => i.user.id === interaction.user.id;
+      const filter = i => i.user.id === interaction.user.id && i.customId.includes(timestamp.toString());
       const collector = interaction.channel.createMessageComponentCollector({ 
         filter, 
         time: 30000 
@@ -79,6 +81,14 @@ export default {
         if (i.customId.includes('correct')) {
           try {
             const role = interaction.guild.roles.cache.get(verificationConfig.verification_role);
+            
+            if (!role) {
+              return i.update({
+                content: '❌ Verification role not found. Please contact an admin.',
+                components: []
+              });
+            }
+
             await member.roles.add(role);
             
             await i.update({
@@ -90,13 +100,13 @@ export default {
             await i.update({
               content: '❌ An error occurred while verifying you. Please contact an admin.',
               components: []
-            });
+            }).catch(() => {});
           }
         } else {
           await i.update({
             content: '❌ **Verification failed!**\n\nYou clicked the wrong button. Please try `/verify` again.',
             components: []
-          });
+          }).catch(() => {});
         }
         collector.stop();
       });
@@ -117,7 +127,7 @@ export default {
         await interaction.reply({
           content: '❌ An error occurred during verification.',
           flags: 64
-        });
+        }).catch(() => {});
       }
     }
   }
