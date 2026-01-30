@@ -1,54 +1,90 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('db-setup')
-    .setDescription('Setup missing database columns (admin only)')
+    .setName('setup-verification')
+    .setDescription('Configure the verification system')
+    .addChannelOption(option =>
+      option
+        .setName('channel')
+        .setDescription('Verification channel')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(true)
+    )
+    .addRoleOption(option =>
+      option
+        .setName('role')
+        .setDescription('Role to give after verification')
+        .setRequired(true)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   category: 'admin',
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      const channel = interaction.options.getChannel('channel');
+      const role = interaction.options.getRole('role');
 
-      const db = interaction.client.db;
-
-      if (!db || !db.db) {
-        return interaction.editReply('❌ Database is not available.');
+      // Vérifier que le bot peut gérer le rôle
+      if (role.position >= interaction.guild.members.me.roles.highest.position) {
+        return interaction.reply({
+          content: '❌ I cannot manage this role as it is higher than my highest role.',
+          ephemeral: true
+        });
       }
 
-      // Vérifier les colonnes existantes
+      // Vérifier que le rôle n'est pas @everyone
+      if (role.id === interaction.guild.id) {
+        return interaction.reply({
+          content: '❌ You cannot use @everyone as verification role.',
+          ephemeral: true
+        });
+      }
+
+      // Sauvegarder dans la base de données
+      const db = interaction.client.db;
+      
+      if (!db || !db.db) {
+        return interaction.reply({
+          content: '❌ Database is not available. Please contact an administrator.',
+          ephemeral: true
+        });
+      }
+
+      // Vérifier que les colonnes existent
       const tableInfo = db.db.prepare('PRAGMA table_info(guilds)').all();
       const columnNames = tableInfo.map(col => col.name);
 
-      let changes = [];
-
-      // Ajouter verification_channel si elle n'existe pas
-      if (!columnNames.includes('verification_channel')) {
-        db.db.prepare('ALTER TABLE guilds ADD COLUMN verification_channel TEXT').run();
-        changes.push('✅ Added `verification_channel`');
-      } else {
-        changes.push('ℹ️ `verification_channel` already exists');
+      if (!columnNames.includes('verification_channel') || !columnNames.includes('verification_role')) {
+        return interaction.reply({
+          content: '❌ Database columns are missing!\n\n**Please run `/db-setup` first** to add the required columns.',
+          ephemeral: true
+        });
       }
 
-      // Ajouter verification_role si elle n'existe pas
-      if (!columnNames.includes('verification_role')) {
-        db.db.prepare('ALTER TABLE guilds ADD COLUMN verification_role TEXT').run();
-        changes.push('✅ Added `verification_role`');
-      } else {
-        changes.push('ℹ️ `verification_role` already exists');
-      }
+      db.db.prepare(`
+        UPDATE guilds 
+        SET verification_channel = ?, verification_role = ? 
+        WHERE guild_id = ?
+      `).run(channel.id, role.id, interaction.guildId);
 
-      await interaction.editReply({
-        content: '**🔧 Database Setup Complete**\n\n' + changes.join('\n') + '\n\n**Next step:** Use `/setup-verification` to configure the system.'
+      await interaction.reply({
+        content: `✅ **Verification system configured!**\n\n` +
+                 `📌 **Channel:** ${channel}\n` +
+                 `🎭 **Role:** ${role}\n\n` +
+                 `Members who use \`/verify\` in ${channel} will receive the ${role} role.`,
+        ephemeral: true
       });
 
     } catch (error) {
-      console.error('Error in db-setup:', error);
+      console.error('Error in setup-verification:', error);
       
-      if (interaction.deferred) {
-        await interaction.editReply('❌ An error occurred during database setup: ' + error.message);
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: '❌ An error occurred: ' + error.message,
+          ephemeral: true
+        });
       }
     }
   }
