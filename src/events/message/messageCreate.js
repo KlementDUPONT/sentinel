@@ -1,67 +1,54 @@
 import logger from '../../utils/logger.js';
 
+// Cache pour le cooldown XP (1 minute par utilisateur)
+const xpCooldowns = new Map();
+
 export default {
-  name: 'messageCreate',
-  category: 'message',
+    name: 'messageCreate',
+    category: 'message',
 
-  async execute(message) {
-    // Ignorer les bots
-    if (message.author.bot) return;
-    
-    // Ignorer les MPs
-    if (!message.guild) return;
+    async execute(message) {
+        if (message.author.bot || !message.guild) return;
 
-    try {
-      const db = message.client.db;
-      
-      if (!db) {
-        logger.warn('Database not available in messageCreate event');
-        return;
-      }
+        const db = message.client.db;
+        const userId = message.author.id;
+        const guildId = message.guild.id;
+        const cooldownKey = `${guildId}-${userId}`;
 
-      // S'assurer que le serveur existe dans la DB
-      let guildData = db.getGuild(message.guild.id);
-      if (!guildData) {
-        db.createGuild(message.guild.id, message.guild.name);
-        guildData = db.getGuild(message.guild.id);
-      }
-
-      // S'assurer que l'utilisateur existe dans la DB
-      let userData = db.getUser(message.author.id, message.guild.id);
-      if (!userData) {
-        db.createUser(message.author.id, message.guild.id);
-        userData = db.getUser(message.author.id, message.guild.id);
-      }
-
-      // Système XP (gain entre 15 et 25 XP par message)
-      const xpGain = Math.floor(Math.random() * 11) + 15; // 15-25 XP
-      const newXp = (userData.xp || 0) + xpGain;
-      const currentLevel = userData.level || 0;
-      
-      // Calculer le niveau (100 XP par niveau)
-      const xpPerLevel = 100;
-      const newLevel = Math.floor(newXp / xpPerLevel);
-
-      // Mettre à jour l'XP et le niveau
-      db.updateUserLevel(message.author.id, message.guild.id, {
-        xp: newXp,
-        level: newLevel
-      });
-
-      // Si level up, envoyer un message
-      if (newLevel > currentLevel) {
-        const levelUpMessage = `🎉 Congratulations ${message.author}! You've reached **Level ${newLevel}**!`;
-        
-        try {
-          await message.channel.send(levelUpMessage);
-        } catch (sendError) {
-          logger.error('Failed to send level up message:', sendError);
+        // 1. Vérification du cooldown en RAM (beaucoup plus rapide que SQL)
+        const now = Date.now();
+        if (xpCooldowns.has(cooldownKey)) {
+            const expirationTime = xpCooldowns.get(cooldownKey) + 60000; // 60s
+            if (now < expirationTime) return; // L'utilisateur gagne de l'XP trop vite
         }
-      }
 
-    } catch (error) {
-      logger.error('Error in messageCreate event (XP system):');
-      logger.error(error.message, { stack: error.stack });
+        try {
+            // 2. S'assurer que l'user existe
+            let userData = db.getUser(userId, guildId);
+            if (!userData) {
+                db.createUser(userId, guildId);
+                userData = { xp: 0, level: 0 };
+            }
+
+            // 3. Calcul du gain
+            const xpGain = Math.floor(Math.random() * 11) + 15; // 15-25 XP
+            const newXp = (userData.xp || 0) + xpGain;
+            const currentLevel = userData.level || 0;
+            const newLevel = Math.floor(newXp / 100);
+
+            // 4. Mise à jour Database
+            db.updateUserXP(userId, guildId, newLevel, newXp);
+
+            // Mettre à jour le cooldown dans la Map
+            xpCooldowns.set(cooldownKey, now);
+
+            // 5. Notification de Level Up
+            if (newLevel > currentLevel) {
+                await message.channel.send(`🎊 Bravo ${message.author}, tu passes au **niveau ${newLevel}** !`);
+            }
+
+        } catch (error) {
+            logger.error('XP System Error:', error.message);
+        }
     }
-  }
 };
