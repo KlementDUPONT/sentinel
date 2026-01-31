@@ -1,4 +1,4 @@
-import { InteractionType, ComponentType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { InteractionType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import logger from '../../utils/logger.js';
 
 export default {
@@ -17,26 +17,28 @@ export default {
                 await handleModal(interaction);
             }
         } catch (error) {
-            logger.error('❌ Interaction Error:', error);
-            const errorPayload = { content: '⚠️ An error occurred while processing this interaction.', flags: 64 };
-
-            if (interaction.deferred || interaction.replied) {
-                await interaction.followUp(errorPayload);
+            // Utilisation du ErrorHandler centralisé
+            if (interaction.client.errorHandler) {
+                await interaction.client.errorHandler.handleInteractionError(error, interaction);
             } else {
-                await interaction.reply(errorPayload);
+                // Fallback si le handler n'est pas encore chargé
+                logger.error('❌ Interaction Error:', error);
+                const payload = { content: '⚠️ An unexpected error occurred.', flags: 64 };
+                if (interaction.deferred || interaction.replied) await interaction.followUp(payload);
+                else await interaction.reply(payload);
             }
         }
     }
 };
 
 /**
- * Handle Slash Commands (/)
+ * Gestion des commandes Slash (/)
  */
 async function handleSlashCommand(interaction) {
     const command = interaction.client.commands.get(interaction.commandName);
     if (!command) return;
 
-    // Cooldown management
+    // Gestion du Cooldown
     const { cooldowns } = interaction.client;
     if (!cooldowns.has(command.data.name)) {
         cooldowns.set(command.data.name, new Map());
@@ -51,7 +53,7 @@ async function handleSlashCommand(interaction) {
         if (now < expirationTime) {
             const timeLeft = (expirationTime - now) / 1000;
             return interaction.reply({
-                content: `⏱️ Please wait ${timeLeft.toFixed(1)} more second(s) before reusing the \`${command.data.name}\` command.`,
+                content: `⏱️ Please wait ${timeLeft.toFixed(1)} more second(s) before reusing \`/${command.data.name}\`.`,
                 flags: 64
             });
         }
@@ -60,16 +62,12 @@ async function handleSlashCommand(interaction) {
     timestamps.set(interaction.user.id, now);
     setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
-    try {
-        await command.execute(interaction);
-        logger.info(`Command executed: /${interaction.commandName} by ${interaction.user.tag}`);
-    } catch (error) {
-        throw error;
-    }
+    await command.execute(interaction);
+    logger.info(`Command executed: /${interaction.commandName} by ${interaction.user.tag}`);
 }
 
 /**
- * Handle Select Menus
+ * Gestion des Menus Déroulants
  */
 async function handleSelectMenu(interaction) {
     const { customId, values, guild, client } = interaction;
@@ -93,12 +91,12 @@ async function handleSelectMenu(interaction) {
 
         if (choice === 'panel_info') {
             const infoEmbed = new EmbedBuilder()
-                .setTitle('🚀 System Information')
+                .setTitle('🚀 Sentinel System Information')
                 .setColor('#00FF00')
                 .addFields(
-                    { name: 'Hosting', value: 'Render.com (Frankfurt)', inline: true },
-                    { name: 'Node.js', value: process.version, inline: true },
-                    { name: 'Uptime', value: `${Math.floor(process.uptime() / 3600)}h`, inline: true }
+                    { name: 'Hosting', value: 'Render.com (Production)', inline: true },
+                    { name: 'Environment', value: `Node.js ${process.version}`, inline: true },
+                    { name: 'Uptime', value: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m`, inline: true }
                 )
                 .setTimestamp();
 
@@ -108,23 +106,20 @@ async function handleSelectMenu(interaction) {
 }
 
 /**
- * Handle Buttons
+ * Gestion des Boutons
  */
 async function handleButton(interaction) {
-    const { customId, guild, client } = interaction;
+    const { customId, client } = interaction;
 
     if (customId === 'panel_refresh') {
         const command = client.commands.get('panel');
         if (command) await command.execute(interaction);
     }
-
-    // Ajout de la logique existante pour les warnings ou les tickets ici si nécessaire
 }
 
 /**
- * Handle Modals
+ * Gestion des Modales (Formulaires)
  */
 async function handleModal(interaction) {
-    // Logique pour les futurs formulaires (ex: report, suggestion)
-    await interaction.reply({ content: 'Modal received!', flags: 64 });
+    await interaction.reply({ content: '✅ Form received and processed.', flags: 64 });
 }

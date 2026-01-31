@@ -6,6 +6,7 @@ import databaseHandler from './handlers/DatabaseHandler.js';
 import EventHandler from './handlers/EventHandler.js';
 import CommandHandler from './handlers/CommandHandler.js';
 import express from 'express';
+import ErrorHandler from './handlers/ErrorHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,6 +27,8 @@ try {
 
 class SentinelBot {
     constructor() {
+        this.errorHandler = new ErrorHandler(this.client);
+        this.client.errorHandler = this.errorHandler; // Pour y accéder partout
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
