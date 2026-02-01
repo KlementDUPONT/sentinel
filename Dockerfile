@@ -8,7 +8,7 @@ COPY package*.json ./
 
 # Install dependencies (including better-sqlite3 build deps)
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
-    && npm ci --only=production \
+    && npm install --only=production \
     && apk del .build-deps
 
 # Copy source code
