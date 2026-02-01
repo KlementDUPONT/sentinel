@@ -3,31 +3,35 @@ import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuild
 
 export const data = new SlashCommandBuilder()
     .setName('setup-verification')
-    .setDescription('Configure le système de vérification')
-    .addChannelOption(option => option.setName('channel').setDescription('Salon de vérification').setRequired(true))
-    .addRoleOption(option => option.setName('role').setDescription('Rôle à donner').setRequired(true))
+    .setDescription('Configure le salon de vérification')
+    .addChannelOption(opt => opt.setName('channel').setDescription('Salon').setRequired(true))
+    .addRoleOption(opt => opt.setName('role').setDescription('Rôle').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction) {
-    const channel = interaction.options.getChannel('channel');
-    const role = interaction.options.getRole('role');
+    try {
+        const channel = interaction.options.getChannel('channel');
+        const role = interaction.options.getRole('role');
 
-    // Sauvegarde en DB
-    interaction.client.db.updateVerification(interaction.guild.id, channel.id, role.id);
+        // On enregistre d'abord en DB
+        interaction.client.db.updateVerification(interaction.guild.id, channel.id, role.id);
 
-    const embed = new EmbedBuilder()
-        .setTitle('Vérification Requise')
-        .setDescription('Cliquez sur le bouton ci-dessous pour accéder au serveur.')
-        .setColor('#3b82f6');
+        const embed = new EmbedBuilder()
+            .setTitle('🛡️ Vérification Sentinel')
+            .setDescription('Cliquez sur le bouton pour obtenir l\'accès au serveur.')
+            .setColor('#2ecc71');
 
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('verify_user')
-            .setLabel('Se vérifier')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('✅')
-    );
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('verify_user')
+                .setLabel('Se vérifier')
+                .setStyle(ButtonStyle.Success)
+        );
 
-    await channel.send({ embeds: [embed], components: [row] });
-    await interaction.reply({ content: `✅ Système configuré dans ${channel}`, ephemeral: true });
+        await channel.send({ embeds: [embed], components: [row] });
+        return interaction.reply({ content: `✅ Configuration terminée dans ${channel}`, ephemeral: true });
+    } catch (err) {
+        console.error(err);
+        return interaction.reply({ content: '❌ Erreur lors de la configuration.', ephemeral: true });
+    }
 }
